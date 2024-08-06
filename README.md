@@ -125,11 +125,11 @@ Here’s how to do this:
       docker compose -f docker-compose.yml up
       ```
 
-5.  Wait for the container to build. It takes 60–70 minutes to build the
+5.  Wait for the container to build. It takes ≈10 minutes to build the
     {renv} library (but only the first time you run this; subsequent
-    runs of `docker compose` should be instant), and it takes about
-    30–40 minutes to run the analysis (but only the first time;
-    subsequent runs of `targets::tar_make()` should be instant).
+    runs of `docker compose` should be instant), and it takes about ≈20
+    minutes to run the analysis (but only the first time; subsequent
+    runs of `targets::tar_make()` should be instant).
 
 6.  Visit [`http://localhost:8787`](http://localhost:8787) and open an
     RStudio session inside the newly-built container in your browser.
@@ -137,7 +137,7 @@ Here’s how to do this:
     computer.
 
 7.  Run the {targets} pipeline by running `targets::tar_make()` in the R
-    console. Wait again; it takes ≈45 minutes to run the models, build
+    console. Wait again; it takes ≈20 minutes to run the models, build
     the statistical notebook website, and render the manuscript in
     multiple formats. Subsequent runs of the pipeline should be fairly
     instant, though.
@@ -169,15 +169,28 @@ It’s also possible to not use Docker and instead run everything locally.
 1.  Open `mountainous-mackerel/mountainous-mackerel.Rproj` to open a new
     RStudio project.
 
-2.  Run `renv::restore()` to install all the packages.
+2.  Run this to install {cmdstanr}. This is supposed to happen
+    automatically as part of `renv::restore()` below, since {cmdstanr}
+    is in the lockfile, but [due to an issue with
+    {renv}](https://github.com/rstudio/renv/issues/1961) (fixed in the
+    development version as of 2024-08-06), it doesn’t install correctly
+    because it is hosted at <https://stan-dev.r-universe.dev> instead of
+    CRAN. So for now, until the next stable release of {renv}, it’s
+    easiest to install {cmdstanr} in a separate step.
 
-3.  Run `cmdstanr::install_cmdstan()` to install
+    ``` r
+    install.packages("cmdstanr", repos = c("https://stan-dev.r-universe.dev", "https://packagemanager.posit.co/cran/latest"))
+    ```
+
+3.  Run `renv::restore()` to install all the packages.
+
+4.  Run `cmdstanr::install_cmdstan()` to install
     [CmdStan](https://mc-stan.org/users/interfaces/cmdstan).
 
-4.  Run `tinytex::install_tinytex()` to install a mimimal LaTeX
+5.  Run `tinytex::install_tinytex()` to install a mimimal LaTeX
     installation if you don’t have one installed already.
 
-5.  Download and install these fonts (or install them from `misc/fonts`
+6.  Download and install these fonts (or install them from `misc/fonts`
     in this repository):
 
     - [Noto Sans](https://fonts.google.com/specimen/Noto+Sans)
@@ -185,9 +198,19 @@ It’s also possible to not use Docker and instead run everything locally.
     - [Libertinus
       Math](https://github.com/alerque/libertinus/releases/tag/v7.040)
 
-6.  Run `targets::tar_make()` to run the full analysis pipeline. This
-    will take ≈45 minutes the first time.
+7.  Run `targets::tar_make()` to run the full analysis pipeline. This
+    will take ≈20 minutes the first time.
 
-7.  When the pipeline is all the way done, find the analysis notebook at
+    > [!NOTE]
+    >
+    > ### Expected errors
+    >
+    > For whatever reason, when the pipeline runs it will show errors
+    > like `Error: object 'who_region' not found`.
+    >
+    > These can be disregarded—everything builds fine and nothing stops
+    > with the errors—it’s not clear why those are appearing ::shrug::
+
+8.  When the pipeline is all the way done, find the analysis notebook at
     `mountainous-mackerel/_site` and the manuscript and appendix files
     at `mountainous-mackerel/manuscript/output/`.

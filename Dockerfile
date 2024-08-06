@@ -5,8 +5,6 @@ FROM rocker/rstudio:4.4.0 AS renv-base
 
 ARG PROJECT="mountainous-mackerel"
 
-RUN R -e "install.packages(c('rstudioapi'), repos = c(CRAN = 'https://packagemanager.posit.co/cran/latest'))"
-
 # Install system dependencies
 RUN apt-get update -y \
     && apt-get install -y --no-install-recommends \
@@ -23,6 +21,10 @@ RUN apt-get update -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+# Install general non-{renv} packages
+RUN R -e "install.packages(c('rstudioapi'), \
+            repos = c(CRAN = 'https://packagemanager.posit.co/cran/latest'))"
+
 # Copy core {renv} things into the container
 RUN mkdir -p /home/rstudio/${PROJECT}/renv/cache && chown rstudio:rstudio /home/rstudio/${PROJECT}
 WORKDIR /home/rstudio/${PROJECT}
@@ -34,7 +36,17 @@ COPY ./${PROJECT}/renv/.gitignore renv/.gitignore
 
 # Install all {renv} packages
 ENV RENV_PATHS_CACHE renv/cache
+
+# This is supposed to happen automatically as part of `renv::restore()` below,
+# since {cmdstanr} is in the lockfile, but [due to an issue with
+# {renv}](https://github.com/rstudio/renv/issues/1961) (fixed in the development
+# version as of 2024-08-06), it doesn't install correctly because it is hosted
+# at <https://stan-dev.r-universe.dev> instead of CRAN. So for now, until the
+# next stable release of {renv}, it's easiest to install {cmdstanr} in a
+# separate step.
 RUN R -e 'install.packages("cmdstanr", repos = c("https://stan-dev.r-universe.dev", "https://packagemanager.posit.co/cran/latest"))'
+
+# Install the rest of the {renv} packages
 RUN R -e 'renv::restore()'
 
 RUN chown -R rstudio:rstudio /home/rstudio/${PROJECT}
