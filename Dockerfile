@@ -1,9 +1,11 @@
 # ------------------------------------------------------------------------------
 # STAGE 1: Main {renv} image with all packages + Stan
 # ------------------------------------------------------------------------------
-FROM rocker/tidyverse:4.4.0 AS renv-base
+FROM rocker/rstudio:4.4.0 AS renv-base
 
 ARG PROJECT="mountainous-mackerel"
+
+RUN R -e "install.packages(c('rstudioapi'), repos = c(CRAN = 'https://packagemanager.posit.co/cran/latest'))"
 
 # Install system dependencies
 RUN apt-get update -y \
@@ -21,28 +23,21 @@ RUN apt-get update -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Configure R globally
-RUN mkdir -p /usr/local/lib/R/etc/ /usr/lib/R/etc/
-RUN echo "options(renv.config.pak.enabled = FALSE, \
-    repos = c(CRAN = 'https://cran.rstudio.com/'), \
-    download.file.method = 'libcurl', \
-    Ncpus = 4)" | tee /usr/local/lib/R/etc/Rprofile.site | tee /usr/lib/R/etc/Rprofile.site
-
 # Copy core {renv} things into the container
 RUN mkdir -p /home/rstudio/${PROJECT}/renv/cache && chown rstudio:rstudio /home/rstudio/${PROJECT}
 WORKDIR /home/rstudio/${PROJECT}
-COPY --chown=rstudio:rstudio ./${PROJECT}/renv.lock renv.lock
-RUN echo 'source("renv/activate.R")' >> .Rprofile
-COPY --chown=rstudio:rstudio ./${PROJECT}/renv/activate.R renv/activate.R
-COPY --chown=rstudio:rstudio ./${PROJECT}/renv/settings.json renv/settings.json
-
-# Change location of {renv} cache to project folder
-ENV RENV_WATCHDOG_ENABLED FALSE
-ENV RENV_PATHS_CACHE renv/cache
+COPY ./${PROJECT}/renv.lock renv.lock
+COPY ./${PROJECT}/.Rprofile .Rprofile
+COPY ./${PROJECT}/renv/activate.R renv/activate.R
+COPY ./${PROJECT}/renv/settings.json renv/settings.json
+COPY ./${PROJECT}/renv/.gitignore renv/.gitignore
 
 # Install all {renv} packages
+ENV RENV_PATHS_CACHE renv/cache
+RUN R -e 'install.packages("cmdstanr", repos = c("https://stan-dev.r-universe.dev", "https://packagemanager.posit.co/cran/latest"))'
 RUN R -e 'renv::restore()'
-RUN chown -R rstudio:rstudio renv/
+
+RUN chown -R rstudio:rstudio /home/rstudio/${PROJECT}
 
 # Install cmdstan
 RUN mkdir /home/rstudio/.cmdstan
