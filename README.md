@@ -2,12 +2,13 @@
 
 
 - [Getting started](#getting-started)
-- [Method 1: Docker Compose
-  (recommended)](#method-1-docker-compose-recommended)
-- [Method 2: Run locally with {renv} and project-specific
-  packages](#method-2-run-locally-with-renv-and-project-specific-packages)
-- [Method 3: Run locally with packages installed
-  systemwide](#method-3-run-locally-with-packages-installed-systemwide)
+- [Method 1: Pre-built Docker Compose
+  (recommended)](#method-1-pre-built-docker-compose-recommended)
+- [Method 2: Docker Compose](#method-2-docker-compose)
+- [Method 3: Run locally with {renv} and project-specific
+  packages](#method-3-run-locally-with-renv-and-project-specific-packages)
+- [Method 4: Run locally with packages installed
+  systemwide](#method-4-run-locally-with-packages-installed-systemwide)
 
 <!-- README.md is generated from README.qmd. Please edit that file -->
 This is a Docker container to help with the replication of [“Pandemic
@@ -34,20 +35,25 @@ thereafter.
 
 Because it can sometimes be difficult to set up and configure
 version-specific libraries of R packages and install specific versions
-of Stan, we provide three methods for replicating our analysis:
+of Stan, we provide four methods for replicating our analysis:
 
-1.  **Running a Docker container built and orchestrated with Docker
-    Compose.** This is the recommended approach, since the complete
-    computational environment will be replicated, including non-R
-    software like Quarto, pandoc, LaTeX, dvisvgm, fonts, and other
-    auxiliary elements.
-2.  **Restoring a project-specific library of all required R packages on
+1.  **Running a pre-built Docker container with Docker Compose.** This
+    uses [a pre-built Docker
+    container](https://hub.docker.com/repository/docker/andrewheiss/mountainous-mackerel-docker-hub/general)
+    that has all the packages already installed. This is the recommended
+    approach, since the complete computational environment will be
+    replicated, including non-R software like Quarto, pandoc, LaTeX,
+    dvisvgm, fonts, and other auxiliary elements.
+2.  **Running a Docker container built and orchestrated with Docker
+    Compose.** This is the same as method 1, but uses a more barebones
+    initial Docker image and then installs all R-related things.
+3.  **Restoring a project-specific library of all required R packages on
     your computer with {renv}.** This is the next recommended approach,
     since {renv} will install package versions as of July 2024 when we
     ran this code prior to publication. However, you’re responsible for
     installing all the non-R elements, like Quarto and LaTeX (detailed
     instructions are included below).
-3.  **Installing the most current versions of all required R packages on
+4.  **Installing the most current versions of all required R packages on
     your computer systemwide.** This is the least recommended approach,
     since the included script will grab the latest version of all R
     packages from CRAN and install them in your system library. As with
@@ -104,7 +110,7 @@ Make sure the folder structure looks like this:
     └── ...
 ```
 
-## Method 1: Docker Compose (recommended)
+## Method 1: Pre-built Docker Compose (recommended)
 
 The entire analysis can be run in a Docker container based on R 4.4.0,
 with all packages locked at specific versions defined in
@@ -131,8 +137,8 @@ Here’s how to do this:
       [download Visual Studio Code](https://code.visualstudio.com/) or
       [Positron](https://github.com/posit-dev/positron) and [its Docker
       extension](https://code.visualstudio.com/docs/containers/overview),
-      you can right click on the `docker-compose.yml` file in the File
-      Explorer sidebar and select “Compose Up”.
+      you can right click on the `docker-compose-prebuilt.yml` file in
+      the File Explorer sidebar and select “Compose Up”.
 
       <img src="img/docker-compose-sidebar.png" style="width:60.0%"
       alt="Docker Compose contextual menu in the Visual Studio Code sidebar" />
@@ -141,10 +147,85 @@ Here’s how to do this:
       replication code directory and run this:
 
       ``` sh
-      docker compose -f docker-compose.yml up
+      docker compose -f docker-compose-prebuilt.yml up
       ```
 
-5.  Wait for the container to build. It takes ≈10 minutes to build the
+5.  Wait for the [pre-built
+    container](https://hub.docker.com/repository/docker/andrewheiss/mountainous-mackerel-docker-hub/general)
+    to get pulled from Docker Hub.
+
+6.  Visit [`http://localhost:8787`](http://localhost:8787) and open an
+    RStudio session inside the newly-built container in your browser.
+    Any edits you make here will also be reflected on your local
+    computer.
+
+7.  Run the {targets} pipeline by running `targets::tar_make()` in the R
+    console. Wait; it takes ≈20 minutes to run the models, build the
+    statistical notebook website, and render the manuscript in multiple
+    formats. Subsequent runs of the pipeline should be fairly instant,
+    though.
+
+    > [!NOTE]
+    >
+    > ### Expected errors
+    >
+    > For whatever reason, when the pipeline runs in Docker, it will
+    > show errors like `Error: object 'who_region' not found` and
+    > `Error: cannot open file '/home/rstudio/mountainous-mackerel/renv/staging/1/R6/R/R6.rdb': No such file or directory`.
+    >
+    > These can be disregarded—everything builds fine and nothing stops
+    > with the errors—it’s not clear why those are appearing ::shrug::
+
+8.  When the pipeline is all the way done, visit
+    [`http://localhost:8888`](http://localhost:8888) to see the analysis
+    notebook and finished manuscript (at
+    [`http://localhost:8888/analysis/paper.html`](http://localhost:8888/analysis/paper.html)).
+
+    You can also see these outputs on your computer: the analysis
+    notebook is at `mountainous-mackerel/_site` and the manuscript and
+    appendix files are at `mountainous-mackerel/manuscript/output/`.
+
+## Method 2: Docker Compose
+
+The entire analysis can be run in a Docker container based on R 4.4.0,
+with all packages locked at specific versions defined in
+`mountainous-mackerel/renv.lock`.
+
+Here’s how to do this:
+
+1.  Install Docker Desktop on your computer (instructions for
+    [macOS](https://docs.docker.com/desktop/install/mac-install/) or
+    [Windows](https://docs.docker.com/desktop/install/windows-install/)).
+
+2.  Make sure Docker is running.
+
+3.  In the Docker Desktop settings, make sure you allocate at least 8
+    CPUs and 16 GB of RAM.
+
+    <img src="img/docker-resources.png" style="width:90.0%"
+    alt="Docker Desktop resource settings" />
+
+4.  Build the analysis with Docker Compose. There are two general
+    approaches:
+
+    - **Using Visual Studio Code or Positron *(recommended)***: If you
+      [download Visual Studio Code](https://code.visualstudio.com/) or
+      [Positron](https://github.com/posit-dev/positron) and [its Docker
+      extension](https://code.visualstudio.com/docs/containers/overview),
+      you can right click on the `docker-compose-prebuilt.yml` file in
+      the File Explorer sidebar and select “Compose Up”.
+
+      <img src="img/docker-compose-sidebar.png" style="width:60.0%"
+      alt="Docker Compose contextual menu in the Visual Studio Code sidebar" />
+
+    - **Using the terminal**: Using a terminal, navigate to this
+      replication code directory and run this:
+
+      ``` sh
+      docker compose -f docker-compose-prebuilt.yml up
+      ```
+
+5.  Wait for the container to build. It takes ≈20 minutes to build the
     {renv} library (but only the first time you run this; subsequent
     runs of `docker compose` should be instant), and it takes about ≈20
     minutes to run the analysis (but only the first time; subsequent
@@ -181,7 +262,7 @@ Here’s how to do this:
     notebook is at `mountainous-mackerel/_site` and the manuscript and
     appendix files are at `mountainous-mackerel/manuscript/output/`.
 
-## Method 2: Run locally with {renv} and project-specific packages
+## Method 3: Run locally with {renv} and project-specific packages
 
 It’s also possible to not use Docker and instead run everything locally
 in a special R package library that is separate from your system
@@ -318,7 +399,7 @@ library.
     `mountainous-mackerel/_site` and the manuscript and appendix files
     at `mountainous-mackerel/manuscript/output/`.
 
-## Method 3: Run locally with packages installed systemwide
+## Method 4: Run locally with packages installed systemwide
 
 Finally, it’s also possible to not use Docker *and* not use {renv} and
 instead run everything using R packages that you install systemwide.
