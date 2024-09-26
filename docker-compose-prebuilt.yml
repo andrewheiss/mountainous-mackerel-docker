@@ -12,7 +12,7 @@ services:
       - DISABLE_AUTH=true  # Allow password-less login to RStudio server instance
       - IS_DOCKER=TRUE  # Used in the main repository
       - CMDSTAN="/home/rstudio/.cmdstan/cmdstan-2.35.0"
-      - LIBGS="/usr/lib/x86_64-linux-gnu/libgs.so.9"
+      - LIBGS="/usr/lib/aarch64-linux-gnu/libgs.so.9"
 
     volumes:
       # Mount the local mountainous-mackerel folder into the container so that
