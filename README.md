@@ -147,7 +147,7 @@ Here’s how to do this:
       replication code directory and run this:
 
       ``` sh
-      docker compose -f docker-compose-prebuilt.yml up
+      docker compose -f docker-compose-prebuilt.yml up -d
       ```
 
 5.  Wait for the [pre-built
@@ -222,7 +222,7 @@ Here’s how to do this:
       replication code directory and run this:
 
       ``` sh
-      docker compose -f docker-compose-prebuilt.yml up
+      docker compose -f docker-compose-prebuilt.yml up -d
       ```
 
 5.  Wait for the container to build. It takes ≈20 minutes to build the
