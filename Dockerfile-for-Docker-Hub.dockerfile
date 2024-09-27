@@ -1,0 +1,93 @@
+# This Dockerfile is basically the same as the main one at /Dockerfile, but it 
+# completes everything in one stage and disables the {renv} cache so that it can
+# be uploaded to Docker Hub (or wherever else). It currently lives at 
+# https://hub.docker.com/r/andrewheiss/mountainous-mackerel-docker-hub
+
+FROM rocker/rstudio:4.4.0 AS mountainous-mackerel-base
+
+ARG PROJECT="mountainous-mackerel"
+
+# Install system dependencies
+RUN apt-get update -y \
+    && apt-get install -y --no-install-recommends \
+    # Determined by {pak} with ./misc/determine-sysreqs.R
+    make pandoc libcurl4-openssl-dev libssl-dev libicu-dev zlib1g-dev libzmq3-dev libxml2-dev libglpk-dev libfontconfig1-dev libfreetype6-dev libpng-dev libfribidi-dev libharfbuzz-dev libjpeg-dev libtiff-dev libgdal-dev gdal-bin libgeos-dev libproj-dev libsqlite3-dev libudunits2-dev \
+    # For compiling things
+    build-essential \
+    clang-3.6 \
+    # For downloading things
+    curl \
+    # For dvisvgm ghostscript-y things
+    ghostscript \
+    # All done
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install general non-{renv} packages
+RUN R -e "install.packages(c('rstudioapi'), \
+            repos = c(CRAN = 'https://packagemanager.posit.co/cran/latest'))"
+
+# Copy core {renv} things into the container
+RUN mkdir -p /home/rstudio/${PROJECT}/renv/cache && chown rstudio:rstudio /home/rstudio/${PROJECT}
+WORKDIR /home/rstudio/${PROJECT}
+COPY ./${PROJECT}/renv.lock renv.lock
+COPY ./${PROJECT}/.Rprofile .Rprofile
+COPY ./${PROJECT}/renv/activate.R renv/activate.R
+COPY ./${PROJECT}/renv/settings.json renv/settings.json
+COPY ./${PROJECT}/renv/.gitignore renv/.gitignore
+
+# Install all {renv} packages
+# This is supposed to happen automatically as part of `renv::restore()` below,
+# since {cmdstanr} is in the lockfile, but [due to an issue with
+# {renv}](https://github.com/rstudio/renv/issues/1961) (fixed in the development
+# version as of 2024-08-06), it doesn't install correctly because it is hosted
+# at <https://stan-dev.r-universe.dev> instead of CRAN. So for now, until the
+# next stable release of {renv}, it's easiest to install {cmdstanr} in a
+# separate step.
+RUN R -e 'install.packages("cmdstanr", repos = c("https://stan-dev.r-universe.dev", "https://packagemanager.posit.co/cran/latest"))'
+
+# Install the rest of the {renv} packages
+RUN R -e 'renv::settings$use.cache(FALSE); renv::restore()'
+
+RUN chown -R rstudio:rstudio /home/rstudio/${PROJECT}
+
+# Install cmdstan
+RUN mkdir /home/rstudio/.cmdstan
+RUN R -e 'cmdstanr::install_cmdstan(dir = "/home/rstudio/.cmdstan", cpp_options = list("CXX" = "clang++"))'
+RUN chown -R rstudio:rstudio /home/rstudio/.cmdstan
+
+# Install Quarto
+ARG QUARTO_VERSION="1.6.1"
+RUN curl -L -o /tmp/quarto-linux-amd64.deb https://github.com/quarto-dev/quarto-cli/releases/download/v${QUARTO_VERSION}/quarto-${QUARTO_VERSION}-linux-amd64.deb && \
+    dpkg -i /tmp/quarto-linux-amd64.deb || true && \
+    apt-get install -fy && \
+    rm /tmp/quarto-linux-amd64.deb
+
+# Install LaTeX
+USER rstudio
+RUN Rscript -e 'tinytex::install_tinytex()'
+ENV PATH="${PATH}:/home/rstudio/bin"
+RUN tlmgr update --all --self
+RUN tlmgr install \
+    # dvisvgm stuff
+    dvisvgm adjustbox collectbox currfile filemod gincltex standalone \
+    fp pgf grfext libertine libertinust1math \
+    # Quarto + Hikmah template stuff
+    nowidow tocloft orcidlink abstract titling tabularray ninecolors \
+    enumitem textcase titlesec footmisc caption pdflscape ulem multirow \
+    wrapfig colortbl tabu threeparttable threeparttablex environ makecell \
+    sidenotes marginnote changepage siunitx mathtools \
+    setspace ragged2e fancyhdr pdftex preprint
+USER root
+
+# Add fonts
+COPY ./misc/fonts/noto-sans/*.ttf /usr/share/fonts/
+COPY ./misc/fonts/linux-libertine-o/*.otf /usr/share/fonts/
+COPY ./misc/fonts/libertinus-math/*.otf /usr/share/fonts/
+RUN fc-cache -f -v
+
+# This .Rprofile contains commands that force RStudio server to load the
+# analysis project by default
+COPY --chown=rstudio:rstudio ./misc/Rprofile.R /home/rstudio/.Rprofile
+
+WORKDIR /home/rstudio/${PROJECT}
