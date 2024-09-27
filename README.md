@@ -116,6 +116,12 @@ The entire analysis can be run in a Docker container based on R 4.4.0,
 with all packages locked at specific versions defined in
 `mountainous-mackerel/renv.lock`.
 
+> [!TIP]
+>
+> Here’s a short video walkthrough of how it works:
+>
+> [![](https://img.youtube.com/vi/J7kkuYXOZwk/0.jpg)](https://www.youtube.com/watch?v=J7kkuYXOZwk)
+
 Here’s how to do this:
 
 1.  Install Docker Desktop on your computer (instructions for
